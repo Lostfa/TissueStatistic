@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from app import app; print\\('Import OK'\\)\")",
+      "Bash(powershell -Command \"conda run -n boa python -c 'import sys; sys.path.insert\\(0, r\\\\\"C:\\\\\\\\python\\\\\\\\TissueStatistic\\\\\\\\pipline\\\\\"\\); from statistic.tissue_statistic import VERTEBRA_LABEL, TISSUE_LABEL, STAT_NAMES; print\\(\\\\\"Import OK\\\\\"\\)' 2>&1\")",
+      "Bash(conda run -n boa python -c ' *)",
+      "Bash(cmd /c \"conda run -n boa python -c \\\\\"import sys; sys.path.insert\\(0, r'C:\\\\python\\\\TissueStatistic\\\\pipline'\\); exec\\(open\\('app.py'\\).read\\(\\).split\\('import sys'\\)[0] + 'print\\(\\\\\\\\\\\\\"modules loaded\\\\\\\\\\\\\"\\)'\\)\\\\\" 2>&1\")"
+    ]
+  }
+}

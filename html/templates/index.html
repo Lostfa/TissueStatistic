@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TissueStatistic - CT组织成分统计分析平台</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<style>.lang-btn{font-size:12px;padding:3px 10px;border:1px solid rgba(255,255,255,0.3);border-radius:4px;background:transparent;color:rgba(255,255,255,0.7);cursor:pointer;transition:all 0.2s}.lang-btn.active{background:rgba(255,255,255,0.2);color:white;border-color:white;font-weight:600}.lang-btn:hover{background:rgba(255,255,255,0.15)}.lang-switch{display:flex;gap:4px;margin-left:16px}</style>
+</head>
+<body>
+
+<!-- ===== 顶部栏 ===== -->
+<header class="app-header">
+  <div class="logo">
+    <span class="logo-icon">🔬</span>
+    <div>
+      <div class="title-row">
+        <h1 data-i18n="app.title">CT 组织成分统计分析平台</h1>
+        <span class="version-tag">v1.0</span>
+        <div class="lang-switch">
+          <button class="lang-btn active" data-lang="en" onclick="switchLanguage('en')">EN</button>
+          <button class="lang-btn" data-lang="zh" onclick="switchLanguage('zh')">中文</button>
+        </div>
+      </div>
+      <div class="subtitle" data-i18n="app.subtitle">TissueStatistic — 从CT图像到统计结果的一站式分析工具</div>
+    </div>
+  </div>
+  <div class="config-area">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <span style="font-size:13px;color:rgba(255,255,255,0.9);white-space:nowrap;">当前工作目录：</span>
+      <input type="text" class="config-input" id="baseWorkingDir"
+             placeholder="工作根目录（如 D:/research/study1）" value="D:/TissueStatistic" readonly>
+      <button class="btn btn-header btn-sm"
+              onclick="openWorkDirInExplorer()">📂 在文件管理器中打开</button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== 步骤进度条 ===== -->
+<nav class="steps-bar">
+  <div class="step-indicator active" data-step="1">
+    <div class="step-number">1</div>
+    <div class="step-label">
+      <span class="step-name" data-i18n="step1.name">数据预处理</span>
+      <span class="step-desc" id="step1Status" data-i18n="step1.desc">DICOM/NIfTI标准化</span>
+    </div>
+  </div>
+  <div class="step-indicator" data-step="2">
+    <div class="step-number">2</div>
+    <div class="step-label">
+      <span class="step-name" data-i18n="step2.name">BOA 分割</span>
+      <span class="step-desc" id="step2Status" data-i18n="step2.desc">CT图像组织分割</span>
+    </div>
+  </div>
+  <div class="step-indicator" data-step="3">
+    <div class="step-number">3</div>
+    <div class="step-label">
+      <span class="step-name" data-i18n="step3.name">统计分析</span>
+      <span class="step-desc" data-i18n="step3.desc">组织成分计算</span>
+    </div>
+  </div>
+  <div class="step-indicator" data-step="4">
+    <div class="step-number">4</div>
+    <div class="step-label">
+      <span class="step-name" data-i18n="step4.name">数据导出</span>
+      <span class="step-desc" data-i18n="step4.desc">CSV表格合并与下载</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== 主内容区：左右分栏 ===== -->
+<div class="app-body">
+<div class="main-left">
+
+<!-- ========== 步骤1: 数据预处理 ========== -->
+<div class="step-panel active" id="step1Panel">
+  <div class="card">
+    <div class="card-title"><span class="icon">📁</span> 文件路径配置</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>输入类型<span class="required-star">*</span></label>
+        <div class="radio-group">
+          <label class="radio-item">
+            <input type="radio" name="step1InputType" value="dicom" checked> DICOM目录
+          </label>
+          <label class="radio-item">
+            <input type="radio" name="step1InputType" value="nifti"> NIfTI文件
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>输入目录路径<span class="required-star">*</span></label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="step1InputPath" placeholder="包含DICOM序列或NIfTI文件的目录"
+                 style="flex:1;min-width:300px;" readonly>
+          <input type="file" id="step1InputPicker" webkitdirectory style="display:none;">
+          <button class="btn btn-outline btn-sm" onclick="pickFolder('step1InputPicker','step1InputPath')">📂 浏览...</button>
+        </div>
+        <div class="option-hint">点击"浏览"选择文件夹，路径将自动填入</div>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>工作根目录<span class="required-star">*</span></label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="step1WorkDir" class="wd-input" placeholder="将在此目录下创建ct_image/等子目录"
+                 style="flex:1;min-width:250px;" readonly>
+          <input type="file" id="step1WorkDirPicker" webkitdirectory style="display:none;">
+          <button class="btn btn-outline btn-sm" onclick="pickFolder('step1WorkDirPicker','step1WorkDir')">📂 浏览...</button>
+        </div>
+        <div class="option-hint">这是项目根目录，ct_image/、boa_label/等将创建在此目录下</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnScanInputs">🔍 扫描输入数据</button>
+    </div>
+
+    <div class="status-box" id="step1Status"></div>
+
+    <div class="card-subtitle mt-md">检测到的序列列表：</div>
+    <div class="table-wrap" id="step1PatientTable">
+      <div class="empty-state"><div class="empty-icon">📭</div>
+        <div class="empty-text">请先输入目录路径并点击"扫描输入数据"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图像预处理参数模块 -->
+  <div class="card mt-md">
+    <div class="card-title"><span class="icon">⚙️</span> 图像预处理</div>
+    <div class="card-subtitle">配置CT图像的标准化处理参数</div>
+
+    <!-- 重采样参数配置 -->
+    <div class="option-group">
+      <div class="option-label">重采样参数配置<span class="required-star">*</span></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>层厚设置</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" id="step1SliceThickness" value="1.0" step="0.1" min="0.5" max="2.5"
+                   style="width:90px;"
+                   onkeydown="return false" onpaste="return false">
+            <span>mm</span>
+            <span class="option-hint">（范围 0.5 ~ 2.5，默认 1.0）</span>
+          </div>
+          <div style="color:#e74c3c;font-size:11px;margin-top:4px;">※ 如需进行组织成分分析，图像层厚需要设置为1mm</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>图像插值方法</label>
+          <select id="step1Interpolation" style="padding:6px 10px;border:1.5px solid #ddd;border-radius:6px;font-size:13px;">
+            <option value="sitkBSpline" selected>sitkBSpline</option>
+            <option value="sitkLinear">sitkLinear</option>
+            <option value="sitkNearestNeighbor">sitkNearestNeighbor</option>
+          </select>
+          <div class="option-hint">重采样时使用的插值算法，默认 B 样条插值效果最好</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- HU值范围 -->
+    <div class="option-group">
+      <div class="option-label">HU值范围<span class="required-star">*</span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span>最小值</span>
+        <input type="number" id="step1HuMin" value="-1000" step="1" style="width:100px;">
+        <span>～</span>
+        <span>最大值</span>
+        <input type="number" id="step1HuMax" value="3000" step="1" style="width:100px;">
+        <span>HU</span>
+      </div>
+      <div class="option-hint">CT值超出此范围的体素将被裁剪，默认范围 [-1000, 3000] HU</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 高斯模糊 -->
+    <div class="option-group">
+      <div class="option-label" style="cursor:pointer;">
+        <input type="checkbox" id="step1GaussianEnable" style="margin-right:6px;">
+        启用高斯模糊
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+        <span>Sigma 参数</span>
+        <input type="number" id="step1GaussianSigma" value="1.5" step="0.1" min="0.5" max="2.5"
+               style="width:90px;" disabled
+               onkeydown="return false" onpaste="return false">
+        <span class="option-hint">（范围 0.5 ~ 2.5，默认 1.5）</span>
+      </div>
+      <div class="option-hint">参考 hjf2_process.py 中的 sitk.DiscreteGaussian 方法，对重采样后的图像进行三维高斯平滑</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 输出文件命名方式 -->
+    <div class="option-group">
+      <div class="option-label">输出文件命名方式<span class="required-star">*</span></div>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" name="step1OutputNaming" value="original" checked>
+          原始文件/文件夹名称
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="step1OutputNaming" value="series_id">
+          序列ID
+        </label>
+      </div>
+      <div class="option-hint">"原始名称"使用DICOM文件夹名或NIfTI文件名；"序列ID"使用DICOM元数据中的PatientID或扫描生成的唯一标识</div>
+    </div>
+
+    <div class="btn-row mt-md">
+      <button class="btn btn-success btn-lg" id="btnStartPreprocess">▶ 开始预处理</button>
+      <button class="btn btn-outline hidden" id="btnCancelStep1" style="display:none;">取消</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap" id="step1Progress">
+    <div class="progress-bar"><div class="progress-fill" id="step1ProgressFill"></div></div>
+    <div class="progress-text" id="step1ProgressText"></div>
+  </div>
+  <div class="log-panel" id="step1Log"></div>
+</div>
+
+<!-- ========== 步骤2: BOA分割 ========== -->
+<div class="step-panel" id="step2Panel">
+  <div class="card">
+    <div class="card-title"><span class="icon">🛠️</span> BOA 环境检测</div>
+    <div class="card-subtitle">检测 conda 环境和 BOA 命令行工具是否就绪</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>工作根目录</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="step2WorkDir" class="wd-input" placeholder="包含ct_image/的根目录"
+                 style="flex:1;min-width:300px;" readonly>
+          <input type="file" id="step2WorkDirPicker" webkitdirectory style="display:none;">
+          <button class="btn btn-outline btn-sm" onclick="pickFolder('step2WorkDirPicker','step2WorkDir')">📂 浏览...</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btnCheckEnv" style="align-self:flex-end;">🔧 检测运行环境</button>
+    </div>
+    <div class="status-box" id="step2EnvStatus"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🛠️</span> BOA 分割配置</div>
+    <div class="card-subtitle">在 conda 环境中运行 BOA 命令行工具进行CT图像组织分割</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>分割模型<span class="required-star">*</span></label>
+        <div class="tag-grid">
+          <div class="tag-item">
+            <input type="checkbox" id="md_total" value="total" checked>
+            <label for="md_total">TotalSegmentator</label>
+          </div>
+          <div class="tag-item">
+            <input type="checkbox" id="md_bca" value="bca" checked>
+            <label for="md_bca">Body and Organ Analysis</label>
+          </div>
+        </div>
+        <div class="option-hint">TotalSegmentator 和 Body and Organ Analysis 为实际可用的分割模型</div>
+      </div>
+    </div>
+
+    <div class="card-subtitle">选择要分割的序列：</div>
+    <div class="table-wrap" id="step2PatientTable">
+      <div class="empty-state"><div class="empty-icon">🔬</div>
+        <div class="empty-text">请确认 ct_image/ 目录中有预处理完成的图像，然后点击刷新</div>
+      </div>
+    </div>
+    <div class="btn-row mt-sm">
+      <button class="btn btn-outline btn-sm" id="btnRefreshBOA">🔄 刷新序列列表</button>
+    </div>
+
+    <div class="btn-row mt-md">
+      <button class="btn btn-success btn-lg" id="btnStartBOA">▶ 启动 BOA 分割</button>
+      <button class="btn btn-outline hidden" id="btnCancelStep2" style="display:none;">取消</button>
+      <span class="text-muted" style="font-size:11px;">⏱ 单个图像序列处理时间约数分钟至数十分钟，取决于图像层数和GPU</span>
+    </div>
+
+    <div class="progress-wrap" id="step2Progress">
+      <div class="progress-bar"><div class="progress-fill" id="step2ProgressFill"></div></div>
+      <div class="progress-text" id="step2ProgressText"></div>
+    </div>
+    <div class="log-panel" id="step2Log"></div>
+  </div>
+</div>
+
+<!-- ========== 步骤3: 统计分析 ========== -->
+<div class="step-panel" id="step3Panel">
+
+  <!-- 文件路径配置 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📁</span> 文件路径配置</div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>图像目录</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="step3CtDir" class="wd-input" placeholder="工作目录/ct_image" style="flex:1;min-width:240px;" readonly>
+          <button class="btn btn-outline btn-sm" onclick="pickFolder('step3CtDirPicker','step3CtDir')">📂 浏览...</button>
+        </div>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>标签目录</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="step3LabelDir" class="wd-input" placeholder="工作目录/boa_label" style="flex:1;min-width:240px;" readonly>
+          <button class="btn btn-outline btn-sm" onclick="pickFolder('step3LabelDirPicker','step3LabelDir')">📂 浏览...</button>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row mt-sm">
+      <button class="btn btn-primary" id="btnScanDirs">🔍 扫描NIFTI文件</button>
+    </div>
+    <div class="status-box" id="step3ScanStatus" style="display:none;">
+      <span id="step3ScanResult"></span>
+    </div>
+  </div>
+
+  <!-- 组织阈值设定 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⚙️</span> 组织阈值设定</div>
+    <div class="card-subtitle">自定义脂肪和肌肉的CT值范围，重新生成组织标签（tissues.nii.gz）</div>
+    <div class="card-subtitle">默认阈值：脂肪 -190 ~ -30 HU，肌肉 -29 ~ 150 HU</div>
+
+    <div class="option-group">
+      <label class="option-label" style="cursor:pointer;">
+        <input type="checkbox" id="step3ThresholdEnable"> 更改组织阈值设定
+      </label>
+    </div>
+
+    <div id="step3ThresholdSettings">
+      <div class="form-row">
+        <div class="form-group">
+          <label>脂肪 CT 值范围 (HU)</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="number" id="step3FatMin" value="-190" min="-1000" max="3000" style="width:80px;" disabled>
+            <span>~</span>
+            <input type="number" id="step3FatMax" value="-30" min="-1000" max="3000" style="width:80px;" disabled>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>肌肉 CT 值范围 (HU)</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="number" id="step3MuscleMin" value="-29" min="-1000" max="3000" style="width:80px;" disabled>
+            <span>~</span>
+            <input type="number" id="step3MuscleMax" value="150" min="-1000" max="3000" style="width:80px;" disabled>
+          </div>
+        </div>
+      </div>
+      <div class="option-hint">勾选后，系统将先使用自定义阈值重新生成组织标签，再执行统计分析</div>
+    </div>
+  </div>
+
+  <!-- 统计分析配置 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> 统计分析配置</div>
+
+    <div class="mode-panel active" id="modeBPanel">
+      <div class="option-group">
+        <label class="option-label" style="cursor:pointer;">
+          <input type="checkbox" id="step3IncludeAll" checked style="margin-right:6px;">全图分析 (ALL)
+        </label>
+      </div>
+
+      <div class="option-group">
+        <div class="option-label">
+          目标椎体
+          <span class="select-all-link" onclick="toggleGroup('step3VertGrid',true)">全选</span>
+          <span class="select-all-link" onclick="toggleGroup('step3VertGrid',false)">取消全选</span>
+        </div>
+        <div class="tag-grid" id="step3VertGrid"></div>
+      </div>
+      <div class="option-group">
+        <div class="option-label">分析范围（mm）</div>
+        <div class="tag-grid" id="step3RangeGrid"></div>
+        <div id="step3CustomRange"></div>
+      </div>
+
+      <div class="form-row mt-md">
+        <div class="form-group">
+          <label>并行处理的序列数</label>
+          <input type="number" id="step3Workers" value="4" min="1" max="8" style="width:80px;">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-success btn-lg" id="btnStartModeB">▶ 启动并行分析</button>
+        <button class="btn btn-outline hidden" id="btnCancelStep3" style="display:none;">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-box mt-md" id="step3Status"></div>
+  <div class="progress-wrap" id="step3Progress">
+    <div class="progress-bar"><div class="progress-fill" id="step3ProgressFill"></div></div>
+    <div class="progress-text" id="step3ProgressText"></div>
+  </div>
+  <div class="log-panel" id="step3Log"></div>
+</div>
+
+<!-- ========== 步骤4: 数据导出 ========== -->
+<div class="step-panel" id="step4Panel">
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> CSV数据合并导出</div>
+    <div class="card-subtitle">选择需要合并的分析结果类型、组织成分和统计指标，生成综合数据表</div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>数据根目录<span class="required-star">*</span></label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="step4BasePath" class="wd-input" placeholder="包含tissue_statistic/的根目录"
+                 style="flex:1;min-width:300px;" readonly>
+          <input type="file" id="step4BasePathPicker" webkitdirectory style="display:none;">
+          <button class="btn btn-outline btn-sm" onclick="pickFolder('step4BasePathPicker','step4BasePath')">📂 浏览...</button>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row mt-sm">
+      <button class="btn btn-primary" id="btnScanCSVs">🔍 扫描CSV数据</button>
+    </div>
+
+    <div class="status-box" id="step4Status" style="display:none;">
+      <span id="step4ScanResult"></span>
+    </div>
+  </div>
+
+  <div class="card" id="step4ScanOptions" style="display:none;">
+    <div class="card-title"><span class="icon">📝</span> 扫描范围选择<span class="required-star">（至少选一项）</span></div>
+
+    <div class="option-group">
+      <label class="option-label" style="cursor:pointer;">
+        <input type="checkbox" id="exportALL" disabled style="margin-right:6px;">全图分析 (ALL)
+        <span id="exportALLHint" style="font-size:11px;color:#999;margin-left:6px;"></span>
+      </label>
+    </div>
+
+    <div class="option-group">
+      <div class="option-label">
+        目标椎体
+        <span class="select-all-link" onclick="toggleGroup('exportVertGrid',true)">全选</span>
+        <span class="select-all-link" onclick="toggleGroup('exportVertGrid',false)">取消全选</span>
+      </div>
+      <div class="tag-grid" id="exportVertGrid"></div>
+      <div class="option-label mt-sm">
+        分析范围（mm）
+        <span class="select-all-link" onclick="toggleGroup('exportRangeGrid',true)">全选</span>
+        <span class="select-all-link" onclick="toggleGroup('exportRangeGrid',false)">取消全选</span>
+      </div>
+      <div class="tag-grid" id="exportRangeGrid"></div>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📝</span> 组织成分选择<span class="required-star">（至少选一项）</span></div>
+    <div class="tag-grid" id="exportTissueGrid"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📝</span> 统计学指标选择<span class="required-star">（至少选一项）</span></div>
+    <div class="tag-grid" id="exportMetricGrid"></div>
+  </div>
+
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn btn-success btn-lg" id="btnStep4Generate" data-i18n="step4.generate">▶ 生成合并表格</button>
+      <button class="btn btn-primary btn-lg" id="btnStep4Download" style="display:none;" data-i18n="step4.download">💾 下载 CSV文件</button>
+    </div>
+
+    <div class="progress-wrap" id="step4Progress">
+      <div class="progress-bar"><div class="progress-fill" id="step4ProgressFill"></div></div>
+      <div class="progress-text" id="step4ProgressText"></div>
+    </div>
+    <div class="log-panel" id="step4Log"></div>
+  </div>
+
+  <div class="card preview-wrap" id="step4PreviewWrap" style="display:none;">
+    <div class="card-title"><span class="icon">👁</span> 数据预览</div>
+    <div class="preview-header">
+      <span class="preview-stats" id="step4PreviewStats"></span>
+    </div>
+    <div class="table-wrap"><table id="step4PreviewTable"></table></div>
+  </div>
+</div>
+
+  <!-- 步骤导航按钮 -->
+  <div class="step-nav">
+    <button class="btn btn-outline step-nav-btn" onclick="goToPrevStep()" id="btnPrevStep">◀ 上一步</button>
+    <span class="step-nav-step" id="consoleNavLabel">步骤 1 / 4</span>
+    <button class="btn btn-outline step-nav-btn" onclick="goToNextStep()" id="btnNextStep">下一步 ▶</button>
+  </div>
+
+</div><!-- /.main-left -->
+
+<!-- ===== 右侧统一控制台 ===== -->
+<div class="console-right" id="consolePanel">
+  <div class="console-header">
+    <span class="console-title" data-i18n="console.title">📟 控制台</span>
+    <button class="console-clear" onclick="clearConsole()" data-i18n="console.clear">清空</button>
+  </div>
+  <div class="console-progress-wrap" id="consoleProgress">
+    <div class="progress-bar"><div class="progress-fill" id="consoleProgressFill"></div></div>
+    <div class="progress-text" id="consoleProgressText">准备就绪</div>
+  </div>
+  <div class="console-log" id="consoleLog">
+    <div class="console-empty">等待任务开始...</div>
+  </div>
+  <div class="console-status" id="consoleStatus">就绪</div>
+</div>
+
+</div><!-- /.app-body -->
+
+<footer class="app-footer" data-i18n="footer">
+  TissueStatistic — CT组织成分统计分析平台 v1.0 &nbsp;|&nbsp;
+  基于 https://github.com/UMEssen/Body-and-Organ-Analysis 和 https://github.com/wasserth/TotalSegmentator &nbsp;|&nbsp;
+  用于医学研究目的
+</footer>
+
+<!-- JavaScript -->
+<script src="/static/js/lang.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/wizard.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
